@@ -4,42 +4,45 @@ let count = 1;
 let allDurations = [];
 let withBiometric = [];
 let withoutBiometric = [];
-let currentHijriDate = "جاري التحميل...";
+let hijriDate = "";
 
-// دالة استدعاء التاريخ الهجري من API
-async function fetchHijriDate() {
-  try {
-    const response = await fetch("https://api.aladhan.com/v1/gToH?date=" + new Date().toISOString().split('T')[0]);
-    const data = await response.json();
-    const hijri = data.data.hijri;
-    const day = hijri.day.padStart(2, '0');
-    const month = hijri.month.number.toString().padStart(2, '0');
-    const year = hijri.year;
-    currentHijriDate = `${year}/${month}/${day}`;
-  } catch (error) {
-    currentHijriDate = "فشل في جلب التاريخ";
+function fetchHijriDate() {
+  const today = new Date().toISOString().split("T")[0];
+  const cachedDate = localStorage.getItem("hijriCachedDate");
+  const cachedValue = localStorage.getItem("hijriDate");
+
+  if (cachedDate === today && cachedValue) {
+    hijriDate = cachedValue;
+  } else {
+    fetch(`https://api.aladhan.com/v1/gToH?date=${today}`)
+      .then(res => res.json())
+      .then(data => {
+        hijriDate = `${data.data.hijri.date}`;
+        localStorage.setItem("hijriCachedDate", today);
+        localStorage.setItem("hijriDate", hijriDate);
+      })
+      .catch(() => {
+        hijriDate = "جاري التحميل...";
+      });
   }
 }
 
 function startTimer(id) {
-  fetchHijriDate(); // استدعاء التاريخ عند الضغط على البدء
-
+  fetchHijriDate();
   const now = new Date();
   if (id === 1) {
     startTime1 = now;
-    document.getElementById("timer1").textContent = "00:00";
     clearInterval(timerInterval1);
     timerInterval1 = setInterval(() => {
-      const secondsPassed = Math.floor((new Date() - startTime1) / 1000);
-      document.getElementById("timer1").textContent = `00:${secondsPassed < 10 ? '0' : ''}${secondsPassed}`;
+      const seconds = Math.floor((new Date() - startTime1) / 1000);
+      document.getElementById("timer1").textContent = `00:${seconds < 10 ? '0' : ''}${seconds}`;
     }, 1000);
   } else {
     startTime2 = now;
-    document.getElementById("timer2").textContent = "00:00";
     clearInterval(timerInterval2);
     timerInterval2 = setInterval(() => {
-      const secondsPassed = Math.floor((new Date() - startTime2) / 1000);
-      document.getElementById("timer2").textContent = `00:${secondsPassed < 10 ? '0' : ''}${secondsPassed}`;
+      const seconds = Math.floor((new Date() - startTime2) / 1000);
+      document.getElementById("timer2").textContent = `00:${seconds < 10 ? '0' : ''}${seconds}`;
     }, 1000);
   }
 }
@@ -59,13 +62,8 @@ function stopTimer(id) {
   const delayReason = document.getElementById(`delayReason${id}`).value;
 
   allDurations.push(duration);
-  if (fingerprint === "نعم") {
-    withBiometric.push(duration);
-  } else {
-    withoutBiometric.push(duration);
-  }
-
-  updateUnifiedAverage();
+  if (fingerprint === "نعم") withBiometric.push(duration);
+  else withoutBiometric.push(duration);
 
   const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
@@ -73,7 +71,7 @@ function stopTimer(id) {
   const newRow = table.insertRow();
   newRow.innerHTML = `
     <td>${count++}</td>
-    <td>${currentHijriDate}</td>
+    <td>${hijriDate || "..."}</td>
     <td>${time}</td>
     <td>${duration}</td>
     <td>${fingerprint}</td>
@@ -86,48 +84,37 @@ function stopTimer(id) {
   else startTime2 = null;
 
   saveTableData();
+  updateUnifiedAverage();
   updatePercentRow();
   updateMinMaxRow();
 }
 
 function updateUnifiedAverage() {
-  const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+  const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b) / arr.length) : 0;
   const avgAll = avg(allDurations);
   const avgWith = avg(withBiometric);
   const avgWithout = avg(withoutBiometric);
 
   document.getElementById("unifiedAverageRow").textContent =
     `متوسط الزمن العام: ${avgAll} ثانية — له بصمة: ${avgWith} ثانية — ماله بصمة: ${avgWithout} ثانية`;
-
-  const total = withBiometric.length + withoutBiometric.length;
-  const percent = v => total ? Math.round((v / total) * 100) : 0;
-  document.getElementById("percentRow").textContent =
-    `نسبة المسجل لهم بصمة: ${percent(withBiometric.length)}% — نسبة غير المسجل لهم: ${percent(withoutBiometric.length)}%`;
 }
 
 function updatePercentRow() {
-  const rows = document.querySelectorAll("#logTable tbody tr");
-  let countYes = 0, countNo = 0;
-  rows.forEach(row => {
-    const val = row.cells[4]?.textContent.trim();
-    if (val === "نعم") countYes++;
-    else if (val === "لا") countNo++;
-  });
-  const total = countYes + countNo;
+  const yes = withBiometric.length;
+  const no = withoutBiometric.length;
+  const total = yes + no;
   const percent = v => total ? Math.round((v / total) * 100) : 0;
   document.getElementById("percentRow").textContent =
-    `نسبة المسجل لهم بصمة: ${percent(countYes)}% — نسبة غير المسجل لهم: ${percent(countNo)}%`;
+    `نسبة المسجل لهم بصمة: ${percent(yes)}% — نسبة غير المسجل لهم: ${percent(no)}%`;
 }
 
 function updateMinMaxRow() {
   const min = arr => arr.length ? Math.min(...arr) : 0;
   const max = arr => arr.length ? Math.max(...arr) : 0;
-
   const minWith = min(withBiometric);
   const maxWith = max(withBiometric);
   const minWithout = min(withoutBiometric);
   const maxWithout = max(withoutBiometric);
-
   document.getElementById("minMaxRow").textContent =
     `الأزمنة القصوى والدنيا — بالبصمة: أقل ${minWith}ث، أعلى ${maxWith}ث — بدون بصمة: أقل ${minWithout}ث، أعلى ${maxWithout}ث`;
 }
@@ -174,6 +161,12 @@ function undoLastEntry() {
   updateMinMaxRow();
 }
 
+function saveTableAsExcel() {
+  let table = document.getElementById("logTable");
+  let wb = XLSX.utils.table_to_book(table, { sheet: "Sheet1" });
+  XLSX.writeFile(wb, "سجل_الحجاج.xlsx", { bookType: "xlsx", type: "binary", charset: "utf-8" });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   const savedRows = localStorage.getItem("hajjTableRows");
   if (savedRows) {
@@ -199,4 +192,6 @@ document.addEventListener("DOMContentLoaded", function () {
     updatePercentRow();
     updateMinMaxRow();
   }
+
+  fetchHijriDate();
 });
