@@ -115,6 +115,9 @@ function saveTableData() {
 }
 
 function clearData() {
+  const confirmed = confirm("هل أنت متأكد أنك تريد البدء من جديد؟ سيتم مسح جميع البيانات.");
+  if (!confirmed) return;
+
   localStorage.removeItem("hajjTableRows");
   const tbody = document.querySelector("#logTable tbody");
   tbody.innerHTML = "";
