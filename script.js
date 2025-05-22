@@ -4,45 +4,24 @@ let count = 1;
 let allDurations = [];
 let withBiometric = [];
 let withoutBiometric = [];
-let hijriDate = "";
-
-function fetchHijriDate() {
-  const today = new Date().toISOString().split("T")[0];
-  const cachedDate = localStorage.getItem("hijriCachedDate");
-  const cachedValue = localStorage.getItem("hijriDate");
-
-  if (cachedDate === today && cachedValue) {
-    hijriDate = cachedValue;
-  } else {
-    fetch(`https://api.aladhan.com/v1/gToH?date=${today}`)
-      .then(res => res.json())
-      .then(data => {
-        hijriDate = data.data.hijri.date.replace(/-/g, '/'); // YYYY/MM/DD
-        localStorage.setItem("hijriCachedDate", today);
-        localStorage.setItem("hijriDate", hijriDate);
-      })
-      .catch(() => {
-        hijriDate = "جاري التحميل...";
-      });
-  }
-}
 
 function startTimer(id) {
-  fetchHijriDate();
   const now = new Date();
   if (id === 1) {
     startTime1 = now;
+    document.getElementById("timer1").textContent = "00:00";
     clearInterval(timerInterval1);
     timerInterval1 = setInterval(() => {
-      const seconds = Math.floor((new Date() - startTime1) / 1000);
-      document.getElementById("timer1").textContent = `00:${seconds < 10 ? '0' : ''}${seconds}`;
+      const secondsPassed = Math.floor((new Date() - startTime1) / 1000);
+      document.getElementById("timer1").textContent = `00:${secondsPassed < 10 ? '0' : ''}${secondsPassed}`;
     }, 1000);
   } else {
     startTime2 = now;
+    document.getElementById("timer2").textContent = "00:00";
     clearInterval(timerInterval2);
     timerInterval2 = setInterval(() => {
-      const seconds = Math.floor((new Date() - startTime2) / 1000);
-      document.getElementById("timer2").textContent = `00:${seconds < 10 ? '0' : ''}${seconds}`;
+      const secondsPassed = Math.floor((new Date() - startTime2) / 1000);
+      document.getElementById("timer2").textContent = `00:${secondsPassed < 10 ? '0' : ''}${secondsPassed}`;
     }, 1000);
   }
 }
@@ -60,18 +39,18 @@ function stopTimer(id) {
   const duration = Math.floor((now - (id === 1 ? startTime1 : startTime2)) / 1000);
   const fingerprint = document.querySelector(`input[name="fingerprint${id}"]:checked`).value;
   const delayReason = document.getElementById(`delayReason${id}`).value;
+  const hijriDate = HijriNow.today();
+  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
   allDurations.push(duration);
   if (fingerprint === "نعم") withBiometric.push(duration);
   else withoutBiometric.push(duration);
 
-  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-
   const table = document.getElementById("logTable").querySelector("tbody");
   const newRow = table.insertRow();
   newRow.innerHTML = `
     <td>${count++}</td>
-    <td>${hijriDate || "..."}</td>
+    <td>${hijriDate}</td>
     <td>${time}</td>
     <td>${duration}</td>
     <td>${fingerprint}</td>
@@ -90,11 +69,10 @@ function stopTimer(id) {
 }
 
 function updateUnifiedAverage() {
-  const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b) / arr.length) : 0;
+  const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
   const avgAll = avg(allDurations);
   const avgWith = avg(withBiometric);
   const avgWithout = avg(withoutBiometric);
-
   document.getElementById("unifiedAverageRow").textContent =
     `متوسط الزمن العام: ${avgAll} ثانية — له بصمة: ${avgWith} ثانية — ماله بصمة: ${avgWithout} ثانية`;
 }
@@ -192,6 +170,4 @@ document.addEventListener("DOMContentLoaded", function () {
     updatePercentRow();
     updateMinMaxRow();
   }
-
-  fetchHijriDate();
 });
