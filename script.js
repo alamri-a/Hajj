@@ -5,6 +5,27 @@ let allDurations = [];
 let withBiometric = [];
 let withoutBiometric = [];
 
+function formatHijriDate(date) {
+  const formatter = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const parts = formatter.formatToParts(date);
+  const day = parts.find(p => p.type === 'day').value.padStart(2, '0');
+  const month = parts.find(p => p.type === 'month').value.padStart(2, '0');
+  const year = parts.find(p => p.type === 'year').value;
+  return `${year}/${month}/${day}`;
+}
+
+function formatTime(date) {
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
 function startTimer(id) {
   const now = new Date();
   if (id === 1) {
@@ -49,15 +70,8 @@ function stopTimer(id) {
 
   updateUnifiedAverage();
 
-  // التاريخ الهجري بصيغة YYYY/MM/DD
-  const hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).format(now).replace(/\//g, '/');
-
-  // الوقت بالأرقام الإنجليزية
-  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const hijriDate = formatHijriDate(now);
+  const time = formatTime(now);
 
   const table = document.getElementById("logTable").querySelector("tbody");
   const newRow = table.insertRow();
@@ -192,18 +206,31 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 
-function saveTableAsExcel() {
-  const table = document.querySelector("#logTable");
-  let csv = "\uFEFF"; // لضمان ترميز UTF-8 للنص العربي
-  const rows = table.querySelectorAll("tr");
+function saveTableAsPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
 
+  html2canvas(document.querySelector("#logTable")).then(canvas => {
+    const imgData = canvas.toDataURL("image/png");
+    const imgProps = doc.getImageProperties(imgData);
+    const pdfWidth = doc.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+    doc.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight);
+    doc.save("سجل_الحجاج.pdf");
+  });
+}
+
+function saveTableAsExcel() {
+  let csv = "";
+  const rows = document.querySelectorAll("#logTable tr");
   rows.forEach(row => {
     const cols = row.querySelectorAll("th, td");
-    const rowData = Array.from(cols).map(cell => `"${cell.textContent.trim()}"`);
+    const rowData = Array.from(cols).map(col => `"${col.innerText}"`);
     csv += rowData.join(",") + "\n";
   });
 
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
