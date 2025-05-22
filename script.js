@@ -17,7 +17,7 @@ function fetchHijriDate() {
     fetch(`https://api.aladhan.com/v1/gToH?date=${today}`)
       .then(res => res.json())
       .then(data => {
-        hijriDate = `${data.data.hijri.date}`;
+        hijriDate = data.data.hijri.date.replace(/-/g, '/'); // YYYY/MM/DD
         localStorage.setItem("hijriCachedDate", today);
         localStorage.setItem("hijriDate", hijriDate);
       })
