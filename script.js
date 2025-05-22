@@ -44,7 +44,14 @@ function stopTimer(id) {
   const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
   const row = document.getElementById("logTable").querySelector("tbody").insertRow();
-  row.innerHTML = `<td>${count++}</td><td>${date}</td><td>${time}</td><td>${duration}</td><td>${fingerprint}</td><td>${delayReason}</td>`;
+  row.innerHTML = `
+    <td>${count++}</td>
+    <td>${date}</td>
+    <td>${time}</td>
+    <td>${duration}</td>
+    <td>${fingerprint}</td>
+    <td>${delayReason}</td>
+  `;
 
   document.getElementById(`timer${id}`).textContent = "00:00";
   document.getElementById(`delayReason${id}`).value = "";
@@ -52,28 +59,38 @@ function stopTimer(id) {
   else startTime2 = null;
 
   saveTableData();
-  updateStats();
+  updateFooterStats();
 }
 
-function updateStats() {
-  const avg = arr => arr.length ? Math.round(arr.reduce((a,b) => a + b) / arr.length) : 0;
-  const sum = arr => arr.length ? arr.reduce((a,b) => a + b) : 0;
+function updateFooterStats() {
+  const sum = arr => arr.reduce((a, b) => a + b, 0);
+  const avg = arr => arr.length ? Math.round(sum(arr) / arr.length) : 0;
   const min = arr => arr.length ? Math.min(...arr) : 0;
   const max = arr => arr.length ? Math.max(...arr) : 0;
+  const total = allDurations.length;
+  const withCount = withBiometric.length;
+  const withoutCount = withoutBiometric.length;
 
-  document.getElementById("sumAll").textContent = sum(allDurations);
-  document.getElementById("sumWith").textContent = sum(withBiometric);
-  document.getElementById("sumWithout").textContent = sum(withoutBiometric);
+  const percent = (val) => total ? Math.round((val / total) * 100) + "%" : "0%";
 
-  document.getElementById("avgAll").textContent = avg(allDurations);
+  document.getElementById("countWith").textContent = withCount;
+  document.getElementById("countWithout").textContent = withoutCount;
+  document.getElementById("countTotal").textContent = total;
+
   document.getElementById("avgWith").textContent = avg(withBiometric);
   document.getElementById("avgWithout").textContent = avg(withoutBiometric);
+  document.getElementById("avgTotal").textContent = avg(allDurations);
 
   document.getElementById("minWith").textContent = min(withBiometric);
   document.getElementById("minWithout").textContent = min(withoutBiometric);
+  document.getElementById("minTotal").textContent = min(allDurations);
 
   document.getElementById("maxWith").textContent = max(withBiometric);
   document.getElementById("maxWithout").textContent = max(withoutBiometric);
+  document.getElementById("maxTotal").textContent = max(allDurations);
+
+  document.getElementById("percentWith").textContent = percent(withCount);
+  document.getElementById("percentWithout").textContent = percent(withoutCount);
 }
 
 function saveTableAsExcel() {
@@ -99,44 +116,55 @@ function saveTableData() {
 
 function clearData() {
   localStorage.removeItem("hajjTableRows");
-  document.querySelector("#logTable tbody").innerHTML = "";
+  const tbody = document.querySelector("#logTable tbody");
+  tbody.innerHTML = "";
+  count = 1;
   allDurations = [];
   withBiometric = [];
   withoutBiometric = [];
-  count = 1;
-  updateStats();
+  document.getElementById("timer1").textContent = "00:00";
+  document.getElementById("timer2").textContent = "00:00";
+  updateFooterStats();
 }
 
 function undoLastEntry() {
   const tbody = document.querySelector("#logTable tbody");
   const lastRow = tbody.lastElementChild;
   if (!lastRow) return;
-  const duration = parseInt(lastRow.cells[3].textContent.trim());
-  const biometric = lastRow.cells[4].textContent.trim();
-  allDurations.pop();
-  if (biometric === "نعم") withBiometric.pop();
-  else withoutBiometric.pop();
+  const duration = parseInt(lastRow.cells[3]?.textContent.trim());
+  const biometric = lastRow.cells[4]?.textContent.trim();
+  if (!isNaN(duration)) {
+    allDurations.pop();
+    if (biometric === "نعم") withBiometric.pop();
+    else withoutBiometric.pop();
+  }
   tbody.removeChild(lastRow);
-  count--;
+  count = Math.max(1, count - 1);
   saveTableData();
-  updateStats();
+  updateFooterStats();
 }
 
 function deleteRowByNumber() {
   const rowNum = parseInt(document.getElementById("rowToDelete").value);
-  if (!rowNum) return alert("أدخل رقم صف صحيح");
-  const rows = document.querySelectorAll("#logTable tbody tr");
-  const row = Array.from(rows).find(r => parseInt(r.cells[0].textContent) === rowNum);
-  if (!row) return alert("لم يتم العثور على الصف");
+  if (!rowNum || rowNum < 1) return alert("أدخل رقم صف صحيح");
+
+  const tbody = document.querySelector("#logTable tbody");
+  const rows = Array.from(tbody.rows);
+  const rowIndex = rows.findIndex(row => parseInt(row.cells[0].textContent) === rowNum);
+  if (rowIndex === -1) return alert("لم يتم العثور على الصف");
   if (!confirm("هل أنت متأكد من حذف الصف؟")) return;
+
+  const row = rows[rowIndex];
   const duration = parseInt(row.cells[3].textContent.trim());
   const biometric = row.cells[4].textContent.trim();
+
   allDurations = allDurations.filter(d => d !== duration);
   if (biometric === "نعم") withBiometric = withBiometric.filter(d => d !== duration);
   else withoutBiometric = withoutBiometric.filter(d => d !== duration);
-  row.remove();
+
+  tbody.deleteRow(rowIndex);
   saveTableData();
-  updateStats();
+  updateFooterStats();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -145,15 +173,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const tbody = document.querySelector("#logTable tbody");
     tbody.innerHTML = savedRows;
     count = tbody.rows.length + 1;
+
+    allDurations = [];
+    withBiometric = [];
+    withoutBiometric = [];
+
     tbody.querySelectorAll("tr").forEach(row => {
-      const duration = parseInt(row.cells[3].textContent.trim());
-      const biometric = row.cells[4].textContent.trim();
+      const duration = parseInt(row.cells[3]?.textContent.trim());
+      const biometric = row.cells[4]?.textContent.trim();
       if (!isNaN(duration)) {
         allDurations.push(duration);
         if (biometric === "نعم") withBiometric.push(duration);
-        else withoutBiometric.push(duration);
+        else if (biometric === "لا") withoutBiometric.push(duration);
       }
     });
-    updateStats();
+    updateFooterStats();
   }
 });
