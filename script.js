@@ -4,18 +4,22 @@ let count = 1;
 let allDurations = [];
 let withBiometric = [];
 let withoutBiometric = [];
-let hijriDate = "";
 
-fetch("https://api.aladhan.com/v1/gToH?date=" + new Date().toISOString().slice(0, 10))
-  .then(response => response.json())
-  .then(data => {
-    const d = data.data.hijri;
-    hijriDate = `${d.year}/${("0" + d.month.number).slice(-2)}/${("0" + d.day).slice(-2)}`;
-  })
-  .catch(error => {
-    console.error("خطأ في جلب التاريخ الهجري:", error);
+let hijriDate = "لم يتم التحميل"; // سيتم تحميل التاريخ عند تشغيل الصفحة
+
+async function fetchHijriDate() {
+  try {
+    const res = await fetch("https://api.aladhan.com/v1/gToH?date=" + new Date().toLocaleDateString("en-CA"));
+    const data = await res.json();
+    if (data.code === 200) {
+      hijriDate = data.data.hijri.date.replace(/-/g, "/");
+    }
+  } catch (e) {
     hijriDate = "لم يتم التحميل";
-  });
+  }
+}
+
+fetchHijriDate();
 
 function startTimer(id) {
   const now = new Date();
@@ -61,11 +65,7 @@ function stopTimer(id) {
 
   updateUnifiedAverage();
 
-  const time = now.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+  const time = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
 
   const table = document.getElementById("logTable").querySelector("tbody");
   const newRow = table.insertRow();
@@ -157,7 +157,7 @@ function undoLastEntry() {
   if (!lastRow) return;
 
   const duration = parseInt(lastRow.cells[3]?.textContent.trim());
-  const biometric = lastRow.cells[4]?.textContent.trim();
+  const biometric = row.cells[4]?.textContent.trim();
 
   if (!isNaN(duration)) {
     allDurations.pop();
@@ -189,17 +189,9 @@ function saveTableAsPDF() {
 }
 
 function saveTableAsExcel() {
-  let table = document.getElementById("logTable");
-  let html = table.outerHTML;
-
-  let blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel" });
-  let url = URL.createObjectURL(blob);
-  let a = document.createElement("a");
-  a.href = url;
-  a.download = "سجل_الحجاج.xls";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  const table = document.getElementById("logTable");
+  const wb = XLSX.utils.table_to_book(table, { sheet: "الحجاج" });
+  XLSX.writeFile(wb, "سجل_الحجاج.xlsx");
 }
 
 document.addEventListener("DOMContentLoaded", function () {
