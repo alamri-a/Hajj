@@ -90,12 +90,12 @@ button span.icon {
 
 /* زر البدء من جديد */
 button.reset {
-  background-color: #28a745; /* أخضر */
+  background-color: #999999; /* أخضر */
   color: white;
 }
 
 /* زر التراجع */
 button.undo {
-  background-color: #ffc107; /* أصفر */
+  background-color: #999999; /* أصفر */
   color: white;
 }
