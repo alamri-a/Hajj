@@ -4,22 +4,27 @@ let count = 1;
 let allDurations = [];
 let withBiometric = [];
 let withoutBiometric = [];
-let hijriDateCache = {}; // تخزين مؤقت للتاريخ الهجري
+let currentHijriDate = "جاري التحميل...";
+
+// دالة استدعاء التاريخ الهجري من API
+async function fetchHijriDate() {
+  try {
+    const response = await fetch("https://api.aladhan.com/v1/gToH?date=" + new Date().toISOString().split('T')[0]);
+    const data = await response.json();
+    const hijri = data.data.hijri;
+    const day = hijri.day.padStart(2, '0');
+    const month = hijri.month.number.toString().padStart(2, '0');
+    const year = hijri.year;
+    currentHijriDate = `${year}/${month}/${day}`;
+  } catch (error) {
+    currentHijriDate = "فشل في جلب التاريخ";
+  }
+}
 
 function startTimer(id) {
-  const now = new Date();
-  const today = now.toISOString().split("T")[0]; // YYYY-MM-DD
-  fetch(`https://api.aladhan.com/v1/gToH?date=${today}`)
-    .then(res => res.json())
-    .then(data => {
-      const h = data.data.hijri;
-      const formatted = `${h.year}/${h.month.number}/${h.day}`;
-      hijriDateCache[id] = formatted;
-    })
-    .catch(() => {
-      hijriDateCache[id] = "خطأ في التاريخ";
-    });
+  fetchHijriDate(); // استدعاء التاريخ عند الضغط على البدء
 
+  const now = new Date();
   if (id === 1) {
     startTime1 = now;
     document.getElementById("timer1").textContent = "00:00";
@@ -62,14 +67,13 @@ function stopTimer(id) {
 
   updateUnifiedAverage();
 
-  const hijriDate = hijriDateCache[id] || "غير متوفر";
-  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
   const table = document.getElementById("logTable").querySelector("tbody");
   const newRow = table.insertRow();
   newRow.innerHTML = `
     <td>${count++}</td>
-    <td>${hijriDate}</td>
+    <td>${currentHijriDate}</td>
     <td>${time}</td>
     <td>${duration}</td>
     <td>${fingerprint}</td>
@@ -83,6 +87,7 @@ function stopTimer(id) {
 
   saveTableData();
   updatePercentRow();
+  updateMinMaxRow();
 }
 
 function updateUnifiedAverage() {
@@ -94,7 +99,10 @@ function updateUnifiedAverage() {
   document.getElementById("unifiedAverageRow").textContent =
     `متوسط الزمن العام: ${avgAll} ثانية — له بصمة: ${avgWith} ثانية — ماله بصمة: ${avgWithout} ثانية`;
 
-  updateMinMaxRow();
+  const total = withBiometric.length + withoutBiometric.length;
+  const percent = v => total ? Math.round((v / total) * 100) : 0;
+  document.getElementById("percentRow").textContent =
+    `نسبة المسجل لهم بصمة: ${percent(withBiometric.length)}% — نسبة غير المسجل لهم: ${percent(withoutBiometric.length)}%`;
 }
 
 function updatePercentRow() {
@@ -122,24 +130,6 @@ function updateMinMaxRow() {
 
   document.getElementById("minMaxRow").textContent =
     `الأزمنة القصوى والدنيا — بالبصمة: أقل ${minWith}ث، أعلى ${maxWith}ث — بدون بصمة: أقل ${minWithout}ث، أعلى ${maxWithout}ث`;
-}
-
-function saveTableAsExcel() {
-  let csv = "";
-  const rows = document.querySelectorAll("table tr");
-  rows.forEach(row => {
-    const cols = row.querySelectorAll("th, td");
-    const rowData = Array.from(cols).map(col => `"${col.innerText}"`);
-    csv += rowData.join(",") + "\n";
-  });
-
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "سجل_الحجاج.csv";
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 function saveTableData() {
