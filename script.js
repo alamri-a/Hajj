@@ -4,26 +4,21 @@ let count = 1;
 let allDurations = [];
 let withBiometric = [];
 let withoutBiometric = [];
+let hijriDate = "";
 
-function formatHijriDate(date) {
-  const formatter = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
-  const parts = formatter.formatToParts(date);
-  const day = parts.find(p => p.type === 'day').value.padStart(2, '0');
-  const month = parts.find(p => p.type === 'month').value.padStart(2, '0');
-  const year = parts.find(p => p.type === 'year').value;
-  return `${year}/${month}/${day}`;
-}
-
-function formatTime(date) {
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+async function fetchHijriDate() {
+  try {
+    const response = await fetch("https://api.aladhan.com/v1/gToH?date=" + new Date().toISOString().slice(0, 10));
+    const data = await response.json();
+    if (data.code === 200 && data.data.hijri) {
+      const h = data.data.hijri;
+      hijriDate = `${h.date.replace(/-/g, "/")}`;
+    } else {
+      hijriDate = new Date().toLocaleDateString('ar-SA'); // fallback
+    }
+  } catch (e) {
+    hijriDate = new Date().toLocaleDateString('ar-SA'); // fallback
+  }
 }
 
 function startTimer(id) {
@@ -70,9 +65,7 @@ function stopTimer(id) {
 
   updateUnifiedAverage();
 
-  const hijriDate = formatHijriDate(now);
-  const time = formatTime(now);
-
+  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   const table = document.getElementById("logTable").querySelector("tbody");
   const newRow = table.insertRow();
   newRow.innerHTML = `
@@ -179,7 +172,26 @@ function undoLastEntry() {
   updateMinMaxRow();
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+function saveTableAsExcel() {
+  let csv = "";
+  const rows = document.querySelectorAll("#logTable tr");
+  rows.forEach(row => {
+    const cols = row.querySelectorAll("th, td");
+    const rowData = Array.from(cols).map(col => `"${col.innerText}"`);
+    csv += rowData.join(",") + "\n";
+  });
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "سجل_الحجاج.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.addEventListener("DOMContentLoaded", async function () {
+  await fetchHijriDate();
   const savedRows = localStorage.getItem("hajjTableRows");
   if (savedRows) {
     const tbody = document.querySelector("#logTable tbody");
@@ -205,36 +217,3 @@ document.addEventListener("DOMContentLoaded", function () {
     updateMinMaxRow();
   }
 });
-
-function saveTableAsPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  html2canvas(document.querySelector("#logTable")).then(canvas => {
-    const imgData = canvas.toDataURL("image/png");
-    const imgProps = doc.getImageProperties(imgData);
-    const pdfWidth = doc.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-    doc.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight);
-    doc.save("سجل_الحجاج.pdf");
-  });
-}
-
-function saveTableAsExcel() {
-  let csv = "";
-  const rows = document.querySelectorAll("#logTable tr");
-  rows.forEach(row => {
-    const cols = row.querySelectorAll("th, td");
-    const rowData = Array.from(cols).map(col => `"${col.innerText}"`);
-    csv += rowData.join(",") + "\n";
-  });
-
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "سجل_الحجاج.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-}
