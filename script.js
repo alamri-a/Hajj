@@ -1,4 +1,3 @@
-
 let startTime1, startTime2;
 let timerInterval1, timerInterval2;
 let count = 1;
@@ -50,8 +49,15 @@ function stopTimer(id) {
 
   updateUnifiedAverage();
 
-  const hijriDate = now.toLocaleDateString('ar-SA');
-  const time = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+  // التاريخ الهجري بصيغة YYYY/MM/DD
+  const hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(now).replace(/\//g, '/');
+
+  // الوقت بالأرقام الإنجليزية
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
   const table = document.getElementById("logTable").querySelector("tbody");
   const newRow = table.insertRow();
@@ -185,3 +191,23 @@ document.addEventListener("DOMContentLoaded", function () {
     updateMinMaxRow();
   }
 });
+
+function saveTableAsExcel() {
+  const table = document.querySelector("#logTable");
+  let csv = "\uFEFF"; // لضمان ترميز UTF-8 للنص العربي
+  const rows = table.querySelectorAll("tr");
+
+  rows.forEach(row => {
+    const cols = row.querySelectorAll("th, td");
+    const rowData = Array.from(cols).map(cell => `"${cell.textContent.trim()}"`);
+    csv += rowData.join(",") + "\n";
+  });
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "سجل_الحجاج.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
