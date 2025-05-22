@@ -4,20 +4,18 @@ let count = 1;
 let allDurations = [];
 let withBiometric = [];
 let withoutBiometric = [];
-let hijriDate = "";
 
-async function fetchHijriDate() {
+// جلب التاريخ الهجري من API
+async function getHijriDate() {
   try {
-    const response = await fetch("https://api.aladhan.com/v1/gToH?date=" + new Date().toISOString().slice(0, 10));
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const response = await fetch(`https://api.aladhan.com/v1/gToH?date=${today}`);
     const data = await response.json();
-    if (data.code === 200 && data.data.hijri) {
-      const h = data.data.hijri;
-      hijriDate = `${h.date.replace(/-/g, "/")}`;
-    } else {
-      hijriDate = new Date().toLocaleDateString('ar-SA'); // fallback
-    }
-  } catch (e) {
-    hijriDate = new Date().toLocaleDateString('ar-SA'); // fallback
+    const hijri = data.data.hijri;
+    return `${hijri.date.replace(/-/g, "/")}`; // تنسيق YYYY/MM/DD
+  } catch (error) {
+    console.error("خطأ في جلب التاريخ الهجري:", error);
+    return "غير متوفر";
   }
 }
 
@@ -42,7 +40,7 @@ function startTimer(id) {
   }
 }
 
-function stopTimer(id) {
+async function stopTimer(id) {
   if ((id === 1 && !startTime1) || (id === 2 && !startTime2)) {
     alert("يجب الضغط على زر البدء أولاً.");
     return;
@@ -57,15 +55,12 @@ function stopTimer(id) {
   const delayReason = document.getElementById(`delayReason${id}`).value;
 
   allDurations.push(duration);
-  if (fingerprint === "نعم") {
-    withBiometric.push(duration);
-  } else {
-    withoutBiometric.push(duration);
-  }
+  if (fingerprint === "نعم") withBiometric.push(duration);
+  else withoutBiometric.push(duration);
 
-  updateUnifiedAverage();
+  const hijriDate = await getHijriDate();
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   const table = document.getElementById("logTable").querySelector("tbody");
   const newRow = table.insertRow();
   newRow.innerHTML = `
@@ -83,24 +78,15 @@ function stopTimer(id) {
   else startTime2 = null;
 
   saveTableData();
+  updateUnifiedAverage();
   updatePercentRow();
+  updateMinMaxRow();
 }
 
 function updateUnifiedAverage() {
   const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
-  const avgAll = avg(allDurations);
-  const avgWith = avg(withBiometric);
-  const avgWithout = avg(withoutBiometric);
-
   document.getElementById("unifiedAverageRow").textContent =
-    `متوسط الزمن العام: ${avgAll} ثانية — له بصمة: ${avgWith} ثانية — ماله بصمة: ${avgWithout} ثانية`;
-
-  const total = withBiometric.length + withoutBiometric.length;
-  const percent = v => total ? Math.round((v / total) * 100) : 0;
-  document.getElementById("percentRow").textContent =
-    `نسبة المسجل لهم بصمة: ${percent(withBiometric.length)}% — نسبة غير المسجل لهم: ${percent(withoutBiometric.length)}%`;
-
-  updateMinMaxRow();
+    `متوسط الزمن العام: ${avg(allDurations)} ثانية — له بصمة: ${avg(withBiometric)} ثانية — ماله بصمة: ${avg(withoutBiometric)} ثانية`;
 }
 
 function updatePercentRow() {
@@ -120,14 +106,26 @@ function updatePercentRow() {
 function updateMinMaxRow() {
   const min = arr => arr.length ? Math.min(...arr) : 0;
   const max = arr => arr.length ? Math.max(...arr) : 0;
-
-  const minWith = min(withBiometric);
-  const maxWith = max(withBiometric);
-  const minWithout = min(withoutBiometric);
-  const maxWithout = max(withoutBiometric);
-
   document.getElementById("minMaxRow").textContent =
-    `الأزمنة القصوى والدنيا — بالبصمة: أقل ${minWith}ث، أعلى ${maxWith}ث — بدون بصمة: أقل ${minWithout}ث، أعلى ${maxWithout}ث`;
+    `الأزمنة القصوى والدنيا — بالبصمة: أقل ${min(withBiometric)}ث، أعلى ${max(withBiometric)}ث — بدون بصمة: أقل ${min(withoutBiometric)}ث، أعلى ${max(withoutBiometric)}ث`;
+}
+
+function saveTableAsExcel() {
+  let csv = "";
+  const rows = document.querySelectorAll("table tr");
+  rows.forEach(row => {
+    const cols = row.querySelectorAll("th, td");
+    const rowData = Array.from(cols).map(col => `"${col.innerText}"`);
+    csv += rowData.join(",") + "\n";
+  });
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "سجل_الحجاج.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function saveTableData() {
@@ -137,8 +135,7 @@ function saveTableData() {
 
 function clearData() {
   localStorage.removeItem("hajjTableRows");
-  const tbody = document.querySelector("#logTable tbody");
-  tbody.innerHTML = "";
+  document.querySelector("#logTable tbody").innerHTML = "";
   count = 1;
   allDurations = [];
   withBiometric = [];
@@ -172,26 +169,7 @@ function undoLastEntry() {
   updateMinMaxRow();
 }
 
-function saveTableAsExcel() {
-  let csv = "";
-  const rows = document.querySelectorAll("#logTable tr");
-  rows.forEach(row => {
-    const cols = row.querySelectorAll("th, td");
-    const rowData = Array.from(cols).map(col => `"${col.innerText}"`);
-    csv += rowData.join(",") + "\n";
-  });
-
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "سجل_الحجاج.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-document.addEventListener("DOMContentLoaded", async function () {
-  await fetchHijriDate();
+document.addEventListener("DOMContentLoaded", function () {
   const savedRows = localStorage.getItem("hajjTableRows");
   if (savedRows) {
     const tbody = document.querySelector("#logTable tbody");
