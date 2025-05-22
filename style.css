@@ -50,3 +50,52 @@ input[type="text"] {
   font-size: 18px;
   padding: 8px;
 }
+
+
+/* تكبير حجم خيار نعم / لا */
+input[type="radio"] {
+  transform: scale(1.5);
+  margin: 0 8px;
+}
+
+/* تباعد بين الخيارات وخانة سبب التأخير */
+.timer-section label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.timer-section input[type="text"] {
+  margin-top: 10px;
+  padding: 8px;
+  width: 70%;
+  font-size: 16px;
+}
+
+/* تنسيق الأزرار */
+button {
+  font-size: 20px;
+  padding: 12px 24px;
+  margin: 5px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* تكبير الأيقونات داخل الأزرار */
+button span.icon {
+  font-size: 60px; /* أيقونة كبيرة */
+  vertical-align: middle;
+  margin-right: 10px;
+}
+
+/* زر البدء من جديد */
+button.reset {
+  background-color: #28a745; /* أخضر */
+  color: white;
+}
+
+/* زر التراجع */
+button.undo {
+  background-color: #ffc107; /* أصفر */
+  color: white;
+}
