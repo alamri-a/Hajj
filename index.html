@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <title>قياس مزدوج لإجراءات الحجاج</title>
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 <div style="text-align: center; margin-top: 20px;">
-  <button class="reset" onclick="clearData()"><span class="icon">♻️</span> البدء من جديد</button>
-  <button class="undo" onclick="undoLastEntry()"><span class="icon">↩️</span> تراجع</button>
+  <button class="reset" onclick="clearData()">♻️ البدء من جديد</button>
+  <button class="undo" onclick="undoLastEntry()">↩️ تراجع</button>
 </div>
 
 <h2>قياس زمن إنهاء إجراءات الحاج - 1</h2>
@@ -38,13 +38,7 @@
   <input type="text" id="delayReason2" placeholder="سبب التأخير (إن وجد)">
 </div>
 
-<h2 style="text-align: right; margin-top: 40px;">
-  سجل الحجاج
-  <button onclick="saveTableAsExcel()">📥 حفظ Excel</button>
-  <span style="display: inline-block; width: 40px;"></span>
-  <input type="number" id="rowToDelete" placeholder="رقم الصف" style="font-size: 16px; width: 100px;">
-  <button onclick="deleteRowByNumber()">🗑️ حذف صف</button>
-</h2>
+<h2 style="text-align: right; margin-top: 40px;">سجل الحجاج</h2>
 
 <table id="logTable">
   <thead>
@@ -59,7 +53,23 @@
   </thead>
   <tbody></tbody>
   <tfoot>
-    <tr><td colspan="6" id="customStats" style="text-align:right; background:#eee; font-weight:bold; padding:10px;"></td></tr>
+    <tr style="background-color: #eee; font-weight: bold;">
+      <td colspan="2">متوسط الزمن</td>
+      <td id="avgAll">0</td>
+      <td id="avgWith">له بصمة: 0</td>
+      <td id="avgWithout">ماله بصمة: 0</td>
+      <td></td>
+    </tr>
+    <tr style="background-color: #f9f9f9;">
+      <td colspan="2">النسبة المئوية</td>
+      <td colspan="2" id="percentWith">له بصمة: 0%</td>
+      <td colspan="2" id="percentWithout">ماله بصمة: 0%</td>
+    </tr>
+    <tr style="background-color: #eee;">
+      <td colspan="2">الأزمنة القصوى والدنيا</td>
+      <td colspan="2" id="rangeWith">له بصمة: أقل 0ث، أعلى 0ث</td>
+      <td colspan="2" id="rangeWithout">ماله بصمة: أقل 0ث، أعلى 0ث</td>
+    </tr>
   </tfoot>
 </table>
 
