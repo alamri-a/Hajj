@@ -4,25 +4,22 @@ let count = 1;
 let allDurations = [];
 let withBiometric = [];
 let withoutBiometric = [];
-
-let hijriDate = "لم يتم التحميل"; // سيتم تحميل التاريخ عند تشغيل الصفحة
-
-async function fetchHijriDate() {
-  try {
-    const res = await fetch("https://api.aladhan.com/v1/gToH?date=" + new Date().toLocaleDateString("en-CA"));
-    const data = await res.json();
-    if (data.code === 200) {
-      hijriDate = data.data.hijri.date.replace(/-/g, "/");
-    }
-  } catch (e) {
-    hijriDate = "لم يتم التحميل";
-  }
-}
-
-fetchHijriDate();
+let hijriDateCache = {}; // تخزين مؤقت للتاريخ الهجري
 
 function startTimer(id) {
   const now = new Date();
+  const today = now.toISOString().split("T")[0]; // YYYY-MM-DD
+  fetch(`https://api.aladhan.com/v1/gToH?date=${today}`)
+    .then(res => res.json())
+    .then(data => {
+      const h = data.data.hijri;
+      const formatted = `${h.year}/${h.month.number}/${h.day}`;
+      hijriDateCache[id] = formatted;
+    })
+    .catch(() => {
+      hijriDateCache[id] = "خطأ في التاريخ";
+    });
+
   if (id === 1) {
     startTime1 = now;
     document.getElementById("timer1").textContent = "00:00";
@@ -65,7 +62,8 @@ function stopTimer(id) {
 
   updateUnifiedAverage();
 
-  const time = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const hijriDate = hijriDateCache[id] || "غير متوفر";
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
   const table = document.getElementById("logTable").querySelector("tbody");
   const newRow = table.insertRow();
@@ -95,11 +93,6 @@ function updateUnifiedAverage() {
 
   document.getElementById("unifiedAverageRow").textContent =
     `متوسط الزمن العام: ${avgAll} ثانية — له بصمة: ${avgWith} ثانية — ماله بصمة: ${avgWithout} ثانية`;
-
-  const total = withBiometric.length + withoutBiometric.length;
-  const percent = v => total ? Math.round((v / total) * 100) : 0;
-  document.getElementById("percentRow").textContent =
-    `نسبة المسجل لهم بصمة: ${percent(withBiometric.length)}% — نسبة غير المسجل لهم: ${percent(withoutBiometric.length)}%`;
 
   updateMinMaxRow();
 }
@@ -131,6 +124,24 @@ function updateMinMaxRow() {
     `الأزمنة القصوى والدنيا — بالبصمة: أقل ${minWith}ث، أعلى ${maxWith}ث — بدون بصمة: أقل ${minWithout}ث، أعلى ${maxWithout}ث`;
 }
 
+function saveTableAsExcel() {
+  let csv = "";
+  const rows = document.querySelectorAll("table tr");
+  rows.forEach(row => {
+    const cols = row.querySelectorAll("th, td");
+    const rowData = Array.from(cols).map(col => `"${col.innerText}"`);
+    csv += rowData.join(",") + "\n";
+  });
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "سجل_الحجاج.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function saveTableData() {
   const tbody = document.querySelector("#logTable tbody");
   localStorage.setItem("hajjTableRows", tbody.innerHTML);
@@ -157,7 +168,7 @@ function undoLastEntry() {
   if (!lastRow) return;
 
   const duration = parseInt(lastRow.cells[3]?.textContent.trim());
-  const biometric = row.cells[4]?.textContent.trim();
+  const biometric = lastRow.cells[4]?.textContent.trim();
 
   if (!isNaN(duration)) {
     allDurations.pop();
@@ -171,27 +182,6 @@ function undoLastEntry() {
   updateUnifiedAverage();
   updatePercentRow();
   updateMinMaxRow();
-}
-
-function saveTableAsPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  html2canvas(document.querySelector("#logTable")).then(canvas => {
-    const imgData = canvas.toDataURL("image/png");
-    const imgProps = doc.getImageProperties(imgData);
-    const pdfWidth = doc.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-    doc.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight);
-    doc.save("سجل_الحجاج.pdf");
-  });
-}
-
-function saveTableAsExcel() {
-  const table = document.getElementById("logTable");
-  const wb = XLSX.utils.table_to_book(table, { sheet: "الحجاج" });
-  XLSX.writeFile(wb, "سجل_الحجاج.xlsx");
 }
 
 document.addEventListener("DOMContentLoaded", function () {
