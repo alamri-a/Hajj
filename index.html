@@ -1,34 +1,112 @@
-<tfoot>
-  <tr style="background-color: #eee; font-weight: bold; text-align: center;">
-    <th>الفئة</th>
-    <th>عدد الحجاج</th>
-    <th>متوسط الزمن (ثانية)</th>
-    <th>الزمن الأدنى (ثانية)</th>
-    <th>الزمن الأعلى (ثانية)</th>
-    <th>النسبة من الإجمالي</th>
-  </tr>
-  <tr style="text-align: center;">
-    <td>المسجل لهم بصمة</td>
-    <td id="biometric-count">0</td>
-    <td id="biometric-avg">0</td>
-    <td id="biometric-min">0</td>
-    <td id="biometric-max">0</td>
-    <td id="biometric-percent">0%</td>
-  </tr>
-  <tr style="text-align: center;">
-    <td>غير المسجل لهم بصمة</td>
-    <td id="nonbiometric-count">0</td>
-    <td id="nonbiometric-avg">0</td>
-    <td id="nonbiometric-min">0</td>
-    <td id="nonbiometric-max">0</td>
-    <td id="nonbiometric-percent">0%</td>
-  </tr>
-  <tr style="text-align: center; font-weight: bold;">
-    <td>الإجمالي</td>
-    <td id="total-count">0</td>
-    <td id="total-avg">0</td>
-    <td id="total-min">0</td>
-    <td id="total-max">0</td>
-    <td>—</td>
-  </tr>
-</tfoot>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>قياس مزدوج لإجراءات الحجاج</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+<div style="text-align: center; margin-top: 20px;">
+  <button class="reset" onclick="clearData()">
+    <span class="icon">♻️</span> البدء من جديد
+  </button>
+  <button class="undo" onclick="undoLastEntry()">
+    <span class="icon">↩️</span> تراجع
+  </button>
+</div>
+
+<h2>قياس زمن إنهاء إجراءات الحاج - 1</h2>
+<div class="section">
+  <button class="big-button start-button" onclick="startTimer(1)">▶ بدء</button>
+  <button class="big-button stop-button" onclick="stopTimer(1)">■ إنهاء</button>
+  <div class="timer" id="timer1">00:00</div>
+  <div class="input-section">
+    <label>هل الحاج مسجل له بصمة سابقًا؟</label>
+    <input type="radio" name="fingerprint1" value="نعم" checked> نعم
+    <input type="radio" name="fingerprint1" value="لا"> لا
+  </div>
+  <input type="text" id="delayReason1" placeholder="سبب التأخير (إن وجد)">
+</div>
+
+<h2>قياس زمن إنهاء إجراءات الحاج - 2</h2>
+<div class="section">
+  <button class="big-button start-button" onclick="startTimer(2)">▶ بدء</button>
+  <button class="big-button stop-button" onclick="stopTimer(2)">■ إنهاء</button>
+  <div class="timer" id="timer2">00:00</div>
+  <div class="input-section">
+    <label>هل الحاج مسجل له بصمة سابقًا؟</label>
+    <input type="radio" name="fingerprint2" value="نعم" checked> نعم
+    <input type="radio" name="fingerprint2" value="لا"> لا
+  </div>
+  <input type="text" id="delayReason2" placeholder="سبب التأخير (إن وجد)">
+</div>
+
+<h2 style="text-align: right; margin-top: 40px;">
+  سجل الحجاج
+  <button onclick="saveTableAsPDF()" style="font-size: 16px; padding: 5px 10px; margin-right: 10px;">
+    💾 حفظ PDF
+  </button>
+  <button onclick="saveTableAsExcel()" style="font-size: 16px; padding: 5px 10px; margin-right: 10px;">
+    📥 حفظ Excel
+  </button>
+  <span style="display: inline-block; width: 40px;"></span>
+  <input type="number" id="rowToDelete" placeholder="رقم الصف" style="font-size: 16px; width: 100px; margin-right: 5px;">
+  <button onclick="deleteRowByNumber()" style="font-size: 16px; padding: 5px 10px;">🗑️ حذف صف</button>
+</h2>
+
+<table id="logTable">
+  <thead>
+    <tr>
+      <th>التعداد</th>
+      <th>التاريخ</th>
+      <th>الساعة</th>
+      <th>المدة بالثواني</th>
+      <th>مسجل له بصمة سابقًا؟</th>
+      <th>سبب التأخير</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+  <tfoot>
+    <tr style="background-color: #ddd; font-weight: bold;">
+      <th>الفئة</th>
+      <th colspan="1">عدد الحجاج</th>
+      <th colspan="1">متوسط الزمن (ثانية)</th>
+      <th colspan="1">الزمن الأدنى (ثانية)</th>
+      <th colspan="1">الزمن الأعلى (ثانية)</th>
+      <th colspan="1">النسبة من الإجمالي</th>
+    </tr>
+    <tr id="stats-biometric">
+      <td>المسجل لهم بصمة</td>
+      <td id="countWith">0</td>
+      <td id="avgWith">0</td>
+      <td id="minWith">0</td>
+      <td id="maxWith">0</td>
+      <td id="percentWith">0%</td>
+    </tr>
+    <tr id="stats-nonbiometric">
+      <td>غير المسجل لهم بصمة</td>
+      <td id="countWithout">0</td>
+      <td id="avgWithout">0</td>
+      <td id="minWithout">0</td>
+      <td id="maxWithout">0</td>
+      <td id="percentWithout">0%</td>
+    </tr>
+    <tr id="stats-total">
+      <td>الإجمالي</td>
+      <td id="countTotal">0</td>
+      <td id="avgTotal">0</td>
+      <td id="minTotal">0</td>
+      <td id="maxTotal">0</td>
+      <td>—</td>
+    </tr>
+  </tfoot>
+</table>
+
+<script src="script.js"></script>
+</body>
+</html>
