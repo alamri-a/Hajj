@@ -5,23 +5,30 @@ let allDurations = [];
 let withBiometric = [];
 let withoutBiometric = [];
 
+function getHijriDate() {
+  const today = new Date();
+  const hijri = HijriJS.toHijri(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  const y = hijri.hy;
+  const m = hijri.hm.toString().padStart(2, '0');
+  const d = hijri.hd.toString().padStart(2, '0');
+  return `${y}/${m}/${d}`;
+}
+
 function startTimer(id) {
   const now = new Date();
   if (id === 1) {
     startTime1 = now;
-    document.getElementById("timer1").textContent = "00:00";
     clearInterval(timerInterval1);
     timerInterval1 = setInterval(() => {
-      const secondsPassed = Math.floor((new Date() - startTime1) / 1000);
-      document.getElementById("timer1").textContent = `00:${secondsPassed < 10 ? '0' : ''}${secondsPassed}`;
+      const seconds = Math.floor((new Date() - startTime1) / 1000);
+      document.getElementById("timer1").textContent = `00:${seconds < 10 ? '0' : ''}${seconds}`;
     }, 1000);
   } else {
     startTime2 = now;
-    document.getElementById("timer2").textContent = "00:00";
     clearInterval(timerInterval2);
     timerInterval2 = setInterval(() => {
-      const secondsPassed = Math.floor((new Date() - startTime2) / 1000);
-      document.getElementById("timer2").textContent = `00:${secondsPassed < 10 ? '0' : ''}${secondsPassed}`;
+      const seconds = Math.floor((new Date() - startTime2) / 1000);
+      document.getElementById("timer2").textContent = `00:${seconds < 10 ? '0' : ''}${seconds}`;
     }, 1000);
   }
 }
@@ -39,12 +46,13 @@ function stopTimer(id) {
   const duration = Math.floor((now - (id === 1 ? startTime1 : startTime2)) / 1000);
   const fingerprint = document.querySelector(`input[name="fingerprint${id}"]:checked`).value;
   const delayReason = document.getElementById(`delayReason${id}`).value;
-  const hijriDate = HijriNow.today();
-  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
   allDurations.push(duration);
   if (fingerprint === "نعم") withBiometric.push(duration);
   else withoutBiometric.push(duration);
+
+  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const hijriDate = getHijriDate();
 
   const table = document.getElementById("logTable").querySelector("tbody");
   const newRow = table.insertRow();
@@ -69,10 +77,11 @@ function stopTimer(id) {
 }
 
 function updateUnifiedAverage() {
-  const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+  const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b) / arr.length) : 0;
   const avgAll = avg(allDurations);
   const avgWith = avg(withBiometric);
   const avgWithout = avg(withoutBiometric);
+
   document.getElementById("unifiedAverageRow").textContent =
     `متوسط الزمن العام: ${avgAll} ثانية — له بصمة: ${avgWith} ثانية — ماله بصمة: ${avgWithout} ثانية`;
 }
