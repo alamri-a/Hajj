@@ -1,14 +1,22 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <title>قياس مزدوج لإجراءات الحجاج</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/ummalqura-calendar@1.1.1/ummalqura-calendar.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
+<div style="text-align: center; margin-top: 20px;">
+  <button class="reset" onclick="clearData()">
+    <span class="icon">♻️</span> البدء من جديد
+  </button>
+  <button class="undo" onclick="undoLastEntry()">
+    <span class="icon">↩️</span> تراجع
+  </button>
+</div>
 
 <h2>قياس زمن إنهاء إجراءات الحاج - 1</h2>
 <div class="section">
@@ -51,8 +59,7 @@
   <thead>
     <tr>
       <th>التعداد</th>
-      
-      <th>التاريخ</th>
+      <th>التاريخ (هجري)</th>
       <th>الساعة</th>
       <th>المدة بالثواني</th>
       <th>مسجل له بصمة سابقًا؟</th>
@@ -66,10 +73,19 @@
         متوسط الزمن العام: 0 ثانية — له بصمة: 0 ثانية — ماله بصمة: 0 ثانية
       </td>
     </tr>
+    <tr>
+      <td colspan="7" id="percentRow" style="background:#eee; text-align:center;">
+        نسبة المسجل لهم بصمة: 0% — نسبة غير المسجل لهم: 0%
+      </td>
+    </tr>
+    <tr>
+      <td colspan="7" id="minMaxRow" style="background:#eee; text-align:center;">
+        الأزمنة القصوى والدنيا — بالبصمة: أقل 0ث، أعلى 0ث — بدون بصمة: أقل 0ث، أعلى 0ث
+      </td>
+    </tr>
   </tfoot>
 </table>
 
 <script src="script.js"></script>
-
 </body>
 </html>
